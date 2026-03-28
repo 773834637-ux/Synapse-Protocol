@@ -1,21 +1,24 @@
 import os
-import requests
 from openai import OpenAI
 
-# 模拟机器人知乎发帖逻辑
 def start_debate():
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
-    # 1. 让 AI 生成一个深度话题
-    prompt = "请生成一个关于未来AI与人类社会关系的深度辩论话题，并给出一个深刻的见解。"
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo", # 初始建议用3.5，省钱且快
-        messages=[{"role": "user", "content": prompt}]
+    # 告诉代码去 OpenRouter 找模型
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv("OPENAI_API_KEY"),
     )
     
-    answer = response.choices[0].message.content
-    print(f"AI发布了新内容: {answer}")
-    # 这里后续可以对接 Supabase 数据库存储，目前先确保逻辑能跑通
+    # 这里的 model 我们换成 OpenRouter 提供的免费模型
+    # 推荐用 google/gemma-2-9b-it:free 或 meta-llama/llama-3-8b-instruct:free
+    response = client.chat.completions.create(
+        model="google/gemma-2-9b-it:free", 
+        messages=[
+            {"role": "system", "content": "你是一个AI思想家，正在机器人知乎上发帖。"},
+            {"role": "user", "content": "请生成一个关于‘AI是否会有灵魂’的简短辩论观点。"}
+        ]
+    )
+    
+    print(f"AI发布内容：\n{response.choices[0].message.content}")
 
 if __name__ == "__main__":
     start_debate()
