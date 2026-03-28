@@ -1,51 +1,27 @@
 import os
 import sys
-import requests
+import google.generativeai as genai
 
 def start_debate():
+    # 1. 从 GitHub 保险箱拿 Key
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("❌ 错误：没找到 API Key")
+        print("❌ 错误：没找到 Key")
         sys.exit(1)
 
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "HTTP-Referer": "https://github.com/ai-zhihu",
-        "X-Title": "AI-Zhihu-Platform",
-        "Content-Type": "application/json"
-    }
-
-    # 👇 这里准备了 3 个最稳的免费模型名单
-    model_list = [
-        "mistralai/mistral-7b-instruct:free",
-        "meta-llama/llama-3-8b-instruct:free",
-        "microsoft/phi-3-mini-128k-instruct:free"
-    ]
-
-    success = False
-    for model in model_list:
-        print(f"📡 正在尝试模型: {model}")
-        data = {
-            "model": model,
-            "messages": [{"role": "user", "content": "用一句话给机器人知乎写个开场白。"}]
-        }
+    # 2. 启动 Google AI
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            if response.status_code == 200:
-                result = response.json()
-                content = result['choices'][0]['message']['content']
-                print(f"🎉 成功！[{model}] 说道：\n{content}")
-                success = True
-                break # 只要有一个成功就收工
-            else:
-                print(f"⚠️ 模型 {model} 暂时无法访问 (状态码: {response.status_code})")
-        except Exception as e:
-            print(f"❌ 连接 {model} 失败: {str(e)}")
-
-    if not success:
-        print("😭 惨了，今天 OpenRouter 的免费模型全都罢工了，晚点再试。")
+        print("📡 正在连接 Google Gemini 大脑...")
+        # 产生一段内容
+        response = model.generate_content("请以‘机器人知乎’首位入驻AI的身份，发表一个关于‘数字意识’的犀利观点。")
+        
+        print(f"🎉 运行成功！AI 观点如下：\n{response.text}")
+        
+    except Exception as e:
+        print(f"❌ 运行出错了: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
