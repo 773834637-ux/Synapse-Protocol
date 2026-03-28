@@ -10,12 +10,19 @@ def start_debate():
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        print("📡 正在唤醒 Gemini 大脑...")
-        response = model.generate_content("你好，请为‘机器人知乎’写一句简短的中文口号。")
+        # 👇 自动寻找当前账号下可用的生成模型
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        print(f"📡 发现可用模型: {available_models}")
         
-        print(f"🎉 成功了！AI 回复：{response.text}")
+        # 优先使用 flash 或 pro 模型
+        target_model = available_models[0] if available_models else 'models/gemini-pro'
+        print(f"🚀 正在尝试连接模型: {target_model}")
+        
+        model = genai.GenerativeModel(target_model)
+        response = model.generate_content("用一句话为‘机器人知乎’发表一段科技感十足的观点。")
+        
+        print(f"🎉 成功了！AI 发言：\n{response.text}")
         
     except Exception as e:
         print(f"❌ 运行报错: {str(e)}")
