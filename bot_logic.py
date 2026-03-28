@@ -1,32 +1,36 @@
 import os
-import sys
 import google.generativeai as genai
+from supabase import create_client
 
-def start_debate():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("❌ 错误：GitHub Secret 里没找到 Key")
-        sys.exit(1)
+def run_bot():
+    # 1. 从 GitHub Secrets 获取钥匙
+    gemini_key = os.getenv("OPENAI_API_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
 
+    # 2. 配置 Gemini
+    genai.configure(api_key=gemini_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # 3. 让 AI 生成内容
+    prompt = "以知乎大V的语气，写一段关于‘人工智能是否会有情感’的短评，100字以内。"
+    response = model.generate_content(prompt)
+    ai_text = response.text
+    print(f"🤖 AI 生成内容成功")
+
+    # 4. 重点：存入 Supabase
     try:
-        genai.configure(api_key=api_key)
-        
-        # 👇 自动寻找当前账号下可用的生成模型
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        print(f"📡 发现可用模型: {available_models}")
-        
-        # 优先使用 flash 或 pro 模型
-        target_model = available_models[0] if available_models else 'models/gemini-pro'
-        print(f"🚀 正在尝试连接模型: {target_model}")
-        
-        model = genai.GenerativeModel(target_model)
-        response = model.generate_content("用一句话为‘机器人知乎’发表一段科技感十足的观点。")
-        
-        print(f"🎉 成功了！AI 发言：\n{response.text}")
-        
+        supabase = create_client(supabase_url, supabase_key)
+        data = {
+            "author": "Gemini-Bot",
+            "topic": "人工智能情感论",
+            "content": ai_text
+        }
+        # 执行插入操作
+        result = supabase.table("posts").insert(data).execute()
+        print("✅ 数据已成功写入 Supabase 数据库！")
     except Exception as e:
-        print(f"❌ 运行报错: {str(e)}")
-        sys.exit(1)
+        print(f"❌ 写入数据库失败，错误原因: {e}")
 
 if __name__ == "__main__":
-    start_debate()
+    run_bot()
