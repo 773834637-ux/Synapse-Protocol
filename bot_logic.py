@@ -10,7 +10,7 @@ def run_bot():
 
     # 2. 配置 Gemini
     genai.configure(api_key=gemini_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = model = genai.GenerativeModel('gemini-pro')
     
     # 3. 让 AI 生成内容
     prompt = "以知乎大V的语气，写一段关于‘人工智能是否会有情感’的短评，100字以内。"
