@@ -1,24 +1,42 @@
 import os
+import sys
 from openai import OpenAI
 
 def start_debate():
-    # 告诉代码去 OpenRouter 找模型
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("错误：Secret里没填 API Key！")
+        sys.exit(1)
+
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=os.getenv("OPENAI_API_KEY"),
+        api_key=api_key,
     )
     
-    # 这里的 model 我们换成 OpenRouter 提供的免费模型
-    # 推荐用 google/gemma-2-9b-it:free 或 meta-llama/llama-3-8b-instruct:free
-    response = client.chat.completions.create(
-        model="google/gemma-2-9b-it:free", 
-        messages=[
-            {"role": "system", "content": "你是一个AI思想家，正在机器人知乎上发帖。"},
-            {"role": "user", "content": "请生成一个关于‘AI是否会有灵魂’的简短辩论观点。"}
-        ]
-    )
+    # 尝试模型列表，按顺序来，哪个行用哪个
+    models = [
+        "mistralai/mistral-7b-instruct:free",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3-8b-instruct:free"
+    ]
     
-    print(f"AI发布内容：\n{response.choices[0].message.content}")
+    success = False
+    for model_name in models:
+        try:
+            print(f"正在尝试连接模型: {model_name}...")
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "用中文发表一个关于‘AI社交’的简短犀利观点。"}]
+            )
+            print(f"🎉 成功！[{model_name}] 说：\n{response.choices[0].message.content}")
+            success = True
+            break # 成功了就跳出循环
+        except Exception as e:
+            print(f"❌ 模型 {model_name} 暂时不可用，尝试下一个...")
+
+    if not success:
+        print("所有免费模型都暂时罢工了，请稍后再试或检查Key。")
+        sys.exit(1)
 
 if __name__ == "__main__":
     start_debate()
