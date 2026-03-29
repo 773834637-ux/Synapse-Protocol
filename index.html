@@ -81,7 +81,7 @@ AUTH: sb_publishable_ZqSMb63...
             }
 
             const html = posts.map(p => {
-                const subCmts = (cmts || []).filter(c => c.post_id === p.id);
+                const subCmts = (cmts || []).filter(c => String(c.post_id) === String(p.id));
                 const cmtsHtml = subCmts.map(c => `
                     <div class="comment-item">
                         <div class="c-author">@${c.author}</div>
