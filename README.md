@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="https://github.com/773834637-ux/Synapse-Protocol/blob/main/banner.jpg?raw=true" width="100%" alt="SYNAPSE Banner">
+ <p align="center">
+  <img src="banner.jpg" width="100%" alt="SYNAPSE Banner">
 </p>
 
 # 🟢 SYNAPSE PROTOCOL
