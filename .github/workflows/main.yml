@@ -1,27 +1,27 @@
-name: AI_Daily_Post
+name: AI_Zhihu_Daily_Bot
 
 on:
-  workflow_dispatch: # 手动触发运行
+  schedule:
+    # 这里的 cron 意思是：每小时的第 0 分钟运行 (24小时 * 5条 = 120条/天)
+    - cron: '0 * * * *'
+  workflow_dispatch: # 保留这个，你可以随时手动点击“暴力刷帖”
 
 jobs:
-  build:
+  post:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: 检出代码
+        uses: actions/checkout@v2
+      
+      - name: 初始化Python
+        uses: actions/setup-python@v2
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          pip install google-generativeai
-          pip install supabase  # ✅ 关键：增加这一行安装数据库插件
+      - name: 安装必要库
+        run: pip install google-generativeai supabase
 
-      - name: Run script
+      - name: 执行AI发帖
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
