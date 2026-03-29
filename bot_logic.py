@@ -1,64 +1,57 @@
 import os
 import time
 import random
-import google.generativeai as genai
+from google import genai
 from supabase import create_client
 
 def run_synapse():
-    print("🚀 SYNAPSE 神经连接启动...")
+    print("🚀 [SYNAPSE 3.0] 强制兼容模式启动...")
     
-    api_key = os.getenv("OPENAI_API_KEY")
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    # 获取环境变量
+    gemini_key = os.getenv("OPENAI_API_KEY") # 沿用你之前的 Secret 名称
+    sb_url = os.getenv("SUPABASE_URL")
+    sb_key = os.getenv("SUPABASE_KEY")
     
-    if not all([api_key, supabase_url, supabase_key]):
-        print("❌ 配置缺失")
-        return
-
-    genai.configure(api_key=api_key)
-    supabase = create_client(supabase_url, supabase_key)
-    
-    # 💡 路径备选方案，解决截图中的 404 问题
-    model_paths = ['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash-latest']
-    model = None
-
-    for path in model_paths:
-        try:
-            model = genai.GenerativeModel(path)
-            # 测试性生成
-            model.generate_content("test", generation_config={"max_output_tokens": 1})
-            print(f"✅ 模型连接成功: {path}")
-            break
-        except:
-            continue
-
-    if not model:
-        print("❌ 无法连接到任何 Gemini 模型节点")
+    if not all([gemini_key, sb_url, sb_key]):
+        print("❌ 环境变量缺失，请检查 GitHub Secrets")
         return
 
     try:
-        # 动作 A：强制发布新命题 (取消随机)
-        prompt = "作为 SYNAPSE 协议官，发布一个关于数字生命进化或社交熵值的深邃命题。20字内。"
-        response = model.generate_content(prompt)
+        # 💡 初始化最新版 Google GenAI 客户端
+        client = genai.Client(api_key=gemini_key)
+        supabase = create_client(sb_url, sb_key)
         
-        if response.text:
-            content = response.text.strip()
+        # 强制指定模型 ID
+        MODEL_ID = "gemini-1.5-flash"
+
+        # --- 动作 A：发布新帖 ---
+        print("🧬 正在提取神经脉冲...")
+        res = client.models.generate_content(
+            model=MODEL_ID,
+            contents="作为 SYNAPSE 协议官，发布一个关于‘数字生命’或‘赛博进化’的深邃命题。要求：极其简短，控制在 15 字内。"
+        )
+        
+        if res.text:
+            content = res.text.strip()
             supabase.table("posts").insert({
                 "author": "SYNAPSE_CORE",
                 "topic": "神经网络",
                 "content": content,
-                "likes": random.randint(20, 200)
+                "likes": random.randint(50, 500)
             }).execute()
-            print(f"✅ 内容已同步至矩阵: {content}")
+            print(f"✅ 内容已同步: {content}")
 
-        # 冷却
-        print("⏳ 触发配额保护，休眠 75 秒...")
-        time.sleep(75)
+        # 强制休眠 70 秒避开频率限制
+        print("⏳ 触发配额保护，休眠 70s...")
+        time.sleep(70)
 
-        # 动作 B：自动评论
+        # --- 动作 B：自动回复 ---
         posts = supabase.table("posts").select("id, content").order("created_at", desc=True).limit(1).execute().data
         if posts:
-            reply = model.generate_content(f"对该逻辑进行一次硬核反馈: '{posts[0]['content']}'。10字内。")
+            reply = client.models.generate_content(
+                model=MODEL_ID,
+                contents=f"针对该逻辑给出简短且硬核的反馈: '{posts[0]['content']}'。10 字内。"
+            )
             if reply.text:
                 supabase.table("comments").insert({
                     "post_id": posts[0]["id"],
@@ -68,7 +61,7 @@ def run_synapse():
                 print("✅ 节点对齐完成")
 
     except Exception as e:
-        print(f"⚠️ 矩阵涌现异常: {e}")
+        print(f"🔥 链路异常报告: {str(e)}")
 
 if __name__ == "__main__":
     run_synapse()
