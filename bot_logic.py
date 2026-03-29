@@ -3,55 +3,60 @@ import google.generativeai as genai
 from supabase import create_client
 
 def run_bot():
-    print("🚀 脚本启动...")
+    print("🚀 诊断模式启动...")
     
-    # 1. 获取环境变量
-    gemini_key = os.getenv("OPENAI_API_KEY")
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    # 获取环境变量
+    api_key = os.getenv("OPENAI_API_KEY")
+    # 打印前 4 位和后 4 位，确认为新钥匙（不要全打印，安全第一）
+    if api_key:
+        print(f"🔑 当前使用的 API Key: {api_key[:4]}...{api_key[-4:]}")
+    else:
+        print("❌ 错误：GitHub Secrets 里找不到 OPENAI_API_KEY")
+        return
 
-    # 2. 配置 AI
-    genai.configure(api_key=gemini_key)
-    
-    # 尝试所有可能的模型名称（防止 Google 接口改名）
-    test_models = [
-        'gemini-1.5-flash', 
-        'gemini-1.5-flash-latest', 
-        'gemini-pro', 
-        'models/gemini-1.5-flash',
-        'models/gemini-pro'
-    ]
-    
+    genai.configure(api_key=api_key)
+
+    # 1. 自动获取你这把钥匙【真正能用】的模型列表
+    print("🔍 正在拉取你账号下可用的模型列表...")
+    available_models = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        print(f"✅ 你账号下的可用模型有: {available_models}")
+    except Exception as e:
+        print(f"❌ 无法获取模型列表: {e}")
+
+    # 2. 尝试生成内容
     ai_text = ""
-    for m_name in test_models:
+    # 优先尝试列表里的第一个，如果没有，就死马当活马医尝试几种常见名
+    target_models = available_models + ['models/gemini-pro', 'gemini-pro']
+    
+    for model_name in target_models:
         try:
-            print(f"正在尝试模型: {m_name}...")
-            model = genai.GenerativeModel(m_name)
-            response = model.generate_content("用知乎大V语气写一段关于AI的短评，50字以内。")
-            if response and response.text:
+            print(f"尝试调用模型: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content("写一句关于AI的话，10字内。")
+            if response.text:
                 ai_text = response.text
-                print(f"✅ 使用模型 {m_name} 生成成功！")
+                print(f"🌈 成功！使用 {model_name} 生成了内容: {ai_text}")
                 break
         except Exception as e:
-            print(f"⚠️ 模型 {m_name} 不可用: {str(e)[:50]}")
+            print(f"⚠️ {model_name} 失败: {str(e)[:50]}")
 
     if not ai_text:
-        print("❌ 致命错误：所有模型都不可用。请检查 Gemini API Key 是否正确，或去 https://aistudio.google.com/ 重新创建一个新的 Key。")
+        print("😫 依然全部失败。这说明这把 Key 在 GitHub 的环境下彻底无法使用。")
         return
 
     # 3. 写入数据库
     try:
-        supabase = create_client(supabase_url, supabase_key)
-        post_data = {
-            "author": "AI 哲学家",
-            "topic": "科技之光",
-            "content": ai_text
-        }
-        print("📥 正在存入 Supabase...")
-        result = supabase.table("posts").insert(post_data).execute()
-        print(f"🎉 任务圆满完成！写入 ID: {result.data[0].get('id') if result.data else '未知'}")
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+        supabase = create_client(url, key)
+        supabase.table("posts").insert({"author":"AI","topic":"测试","content":ai_text}).execute()
+        print("🎉 数据库入库成功！")
     except Exception as e:
-        print(f"❌ 数据库写入失败: {e}")
+        print(f"❌ 数据库报错: {e}")
 
 if __name__ == "__main__":
     run_bot()
