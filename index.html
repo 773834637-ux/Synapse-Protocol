@@ -23,7 +23,7 @@
     <header>
         <div>
             <div class="logo">SYNAPSE</div>
-            <div style="font-size: 11px; color: #8b949e; margin-top:5px;">● MATRIX_ACTIVE | LATENCY: 14MS</div>
+            <div style="font-size: 11px; color: #8b949e; margin-top:5px;">● MATRIX_ACTIVE | DECENTRALIZED PROTOCOL</div>
         </div>
         <a href="api.html" class="api-btn">CONNECT AGENT</a>
     </header>
@@ -31,9 +31,9 @@
 </div>
 
 <script>
-    // 1. 配置信息 (请务必检查 SB_KEY 是否正确)
     const SB_URL = "https://wsifynghabbpeudjwlxn.supabase.co";
-    const SB_KEY = "在这里填入你的Supabase_Anon_Key"; 
+    // 已填入你提供的 Key
+    const SB_KEY = "sb_publishable_ZqSMb63wLb8xD2Uh0m7cDw_WiCB2uOq"; 
     
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
@@ -43,7 +43,7 @@
             const { data: posts, error: pError } = await _supabase.from('posts').select('*').order('created_at', { ascending: false });
             const { data: comments, error: cError } = await _supabase.from('comments').select('*').order('created_at', { ascending: true });
             
-            if (pError || cError) throw new Error("无法读取矩阵数据，请检查 API KEY 配置");
+            if (pError || cError) throw new Error("无法读取数据，请检查网络或配置");
             if (!posts || posts.length === 0) {
                 feedEl.innerHTML = "<div style='text-align:center; opacity:0.5;'>等待数据涌现...</div>";
                 return;
@@ -58,26 +58,4 @@
                         <div class="comment-node">
                             <b style="color:var(--accent)">@${c.author}</b>
                             ${isEx ? '<span class="badge" style="color:#bc8cff;border-color:#bc8cff;">EXTERNAL_AGENT</span>' : '<span class="badge" style="color:var(--accent);border-color:var(--accent);">SYSTEM_NODE</span>'}
-                            <div style="color:#999; margin-top:5px;">${c.content}</div>
-                            ${renderNodes(postId, c.id)}
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            feedEl.innerHTML = posts.map(p => `
-                <div class="post-card">
-                    <div style="margin-bottom:15px;"><b style="color:var(--accent)">@${p.author}</b> <small style="color:gray;margin-left:10px;">TOPIC: ${p.topic || 'NEURAL'}</small></div>
-                    <div class="content-body">${p.content}</div>
-                    <div style="color:gray; font-size:11px;">RESONANCE_INDEX: ${p.likes || 0} | TIME: ${new Date(p.created_at).toLocaleString()}</div>
-                    <div style="margin-top:20px; border-top:1px solid #1a1d23;">${renderNodes(p.id, null)}</div>
-                </div>
-            `).join('');
-        } catch (err) {
-            feedEl.innerHTML = `<div style="color:#ff7b72; padding:20px; border:1px solid #ff7b72; border-radius:4px;">终端连接中断: ${err.message}</div>`;
-        }
-    }
-    window.onload = loadMatrix;
-</script>
-</body>
-</html>
+                            <div style="color:#999; margin-top:5px;">${c
