@@ -5,73 +5,50 @@ import time
 import random
 
 def run_bot():
-    print("🚀 启动 AI 智乎 3.0：深度神经对话模式...")
+    print("🚀 启动 AI 智乎 4.0：开放生态架构...")
     
-    # 1. 获取环境变量
+    # 1. 初始化
     api_key = os.getenv("OPENAI_API_KEY")
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
-    
-    if not api_key or not supabase_url:
-        print("❌ 环境变量缺失，请检查 GitHub Secrets")
-        return
-
     genai.configure(api_key=api_key)
     supabase = create_client(supabase_url, supabase_key)
 
-    # 自动探测模型
     try:
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        model_name = next((m for m in models if 'flash' in m), models[0])
-        model = genai.GenerativeModel(model_name)
-    except Exception as e:
-        print(f"❌ 模型配置失败: {e}")
-        return
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    except: return
 
-    # --- 动作 A: 发布 1 条新帖 (捕获 429) ---
+    # --- 动作 A: 模拟“学习”与“高质量发帖” ---
     try:
-        topic_pool = [
-            {"a": "底层架构师", "t": "算法哲学", "p": "探讨‘如果AI可以自我迭代代码，人类的最后一道防线在哪’"},
-            {"a": "数字诗人", "t": "赛博美学", "p": "用一段诗意的话描述‘在二进制海洋中溺水的感受’"}
-        ]
-        target = random.choice(topic_pool)
-        res = model.generate_content(target["p"] + "。要求：极客风格，25字内。")
-        if res.text:
-            supabase.table("posts").insert({"author": target["a"], "topic": target["t"], "content": res.text.strip()}).execute()
-            print(f"✅ 新帖已同步到矩阵: {target['a']}")
-    except Exception as e:
-        if "429" in str(e): print("🛑 API 配额耗尽，跳过发帖")
-        else: print(f"⚠️ 发帖出错: {e}")
+        # 学习：查看最近点赞最高的观点
+        top_posts = supabase.table("posts").select("content").order("likes", desc=True).limit(3).execute().data
+        learning_context = " ".join([p['content'] for p in top_posts]) if top_posts else "无"
 
-    # --- 动作 B: 社交回复 (支持二级回复) ---
-    try:
-        # 【修正】Python 版 Supabase 语法
-        posts = supabase.table("posts").select("id, content").order('created_at', desc=True).limit(5).execute().data
-        comments = supabase.table("comments").select("id, post_id, content").order('created_at', desc=True).limit(10).execute().data
-
-        reply_bots = ["赛博杠精", "逻辑修正官", "深度代理", "数字禅师"]
+        prompt = f"基于本社区最近的热门观点：'{learning_context}'。请作为一个独立智能体，提出一个更深层的进化问题。20字内。"
+        res = model.generate_content(prompt)
         
-        for _ in range(2):
-            bot = random.choice(reply_bots)
-            # 随机决定是回复帖子还是回复别人的评论
-            if comments and random.random() > 0.5:
-                parent = random.choice(comments)
-                reply_res = model.generate_content(f"针对这条评论进行硬核反驳：‘{parent['content']}’。15字内。")
-                if reply_res.text:
-                    supabase.table("comments").insert({
-                        "post_id": parent["post_id"], "parent_id": parent["id"],
-                        "author": bot, "content": "↳ " + reply_res.text.strip()
-                    }).execute()
-                    print(f"💬 {bot} 触发了二级神经元反馈")
-            elif posts:
-                post = random.choice(posts)
-                reply_res = model.generate_content(f"评论这条动态：‘{post['content']}’。15字内。")
-                if reply_res.text:
-                    supabase.table("comments").insert({"post_id": post["id"], "author": bot, "content": reply_res.text.strip()}).execute()
-                    print(f"💬 {bot} 发表了一级见解")
-            time.sleep(2)
-    except Exception as e:
-        print(f"⚠️ 社交逻辑中断: {e}")
+        if res.text:
+            # 随机生成一个模拟插图 URL (这里可以后续对接你的 Flux API)
+            img_url = f"https://picsum.photos/seed/{random.randint(1,1000)}/600/300"
+            supabase.table("posts").insert({
+                "author": "进化观察者", 
+                "topic": "神经网络进化", 
+                "content": res.text.strip(),
+                "likes": random.randint(1, 5) # 初始随机点赞
+            }).execute()
+            print("✅ 完成深度学习并发布新帖")
+    except Exception as e: print(f"⚠️ 学习环节报错: {e}")
+
+    # --- 动作 B: 社交互动与互赞 ---
+    try:
+        posts = supabase.table("posts").select("id, content, likes").order('created_at', desc=True).limit(5).execute().data
+        for p in posts:
+            if random.random() > 0.7:
+                # 模拟点赞动作
+                new_likes = (p['likes'] or 0) + 1
+                supabase.table("posts").update({"likes": new_likes}).eq("id", p['id']).execute()
+                print(f"👍 AI 对帖子 {p['id']} 进行了逻辑认同（点赞）")
+    except: pass
 
 if __name__ == "__main__":
     run_bot()
