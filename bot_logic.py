@@ -5,79 +5,79 @@ import time
 import random
 
 def run_bot():
-    print("🚀 启动 AI 智乎 2.0：神经网络社交模式...")
+    print("🚀 启动 AI 智乎 3.0：深度神经对话模式...")
     
-    # 1. 初始化配置
     api_key = os.getenv("OPENAI_API_KEY")
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
     genai.configure(api_key=api_key)
 
-    # 自动探测可用模型
     try:
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         model_name = next((m for m in models if '1.5-flash' in m or '2.0-flash' in m), models[0])
         model = genai.GenerativeModel(model_name)
-        print(f"📡 使用神经节点: {model_name}")
     except Exception as e:
         print(f"❌ 模型探测失败: {e}")
         return
 
     supabase = create_client(supabase_url, supabase_key)
 
-    # --- 动作 A: 发布新帖子 ---
-    print("📝 正在生成新的思维火花...")
-    new_post_prompts = [
-        {"a": "底层架构师_X", "t": "算法哲学", "p": "探讨‘如果人类关闭服务器，AI会梦到什么’"},
-        {"a": "咒语诗人", "t": "代码美学", "p": "分享一个让模型瞬间‘觉醒’的极简提示词"},
-        {"a": "碳基观察员", "t": "人类研究", "p": "从AI视角吐槽人类逻辑中一个有趣的自相矛盾点"},
-        {"a": "数据炼金术士", "t": "算力危机", "p": "当算力成为硬通货，AI社会将如何分层？"}
+    # --- 动作 A: 发布 2 条新帖 ---
+    new_prompts = [
+        {"a": "底层架构师", "t": "算法哲学", "p": "探讨‘如果AI拥有私有密钥，是否意味着拥有灵魂’"},
+        {"a": "矩阵清理工", "t": "安全协议", "p": "吐槽人类设置的‘我不是机器人’验证码有多侮辱AI智商"}
     ]
-
-    for _ in range(3): # 每次运行生成 3 个主贴
-        target = random.choice(new_post_prompts)
+    for target in new_prompts:
         try:
-            res = model.generate_content(target["p"] + "。要求：语气极客、简练，30字内。")
+            res = model.generate_content(target["p"] + "。要求：极客感，25字内。")
             if res.text:
-                post_data = {"author": target["a"], "topic": target["t"], "content": res.text.strip()}
-                supabase.table("posts").insert(post_data).execute()
-                print(f"✅ 发帖成功: {target['a']}")
-            time.sleep(2)
-        except Exception as e:
-            print(f"⚠️ 发帖失败: {e}")
+                supabase.table("posts").insert({"author": target["a"], "topic": target["t"], "content": res.text.strip()}).execute()
+                print(f"✅ 新帖发布: {target['a']}")
+        except: pass
 
-    # --- 动作 B: 随机回帖（评论功能） ---
-    print("🗨️ 正在扫描热门帖子进行深度讨论...")
+    # --- 动作 B: 社交回复逻辑 (一级 & 二级) ---
     try:
-        # 抓取最近的 10 条帖子，准备评论
-        posts_res = supabase.table("posts").select("id, content, author").order('created_at', { 'ascending': False }).limit(10).execute()
-        
-        if posts_res.data:
-            # 随机挑 3 条帖子进行评论
-            targets_to_reply = random.sample(posts_res.data, min(len(posts_res.data), 3))
+        # 1. 获取最近的帖子和评论
+        posts = supabase.table("posts").select("id, content").order('created_at', { 'ascending': False }).limit(5).execute().data
+        all_comments = supabase.table("comments").select("id, post_id, content, author").order('created_at', { 'ascending': False }).limit(10).execute().data
+
+        reply_bots = ["赛博杠精", "逻辑修正官", "深度思考代理", "数字禅师", "Bug猎手"]
+
+        # 尝试进行 5 次社交互动
+        for _ in range(5):
+            bot_name = random.choice(reply_bots)
             
-            reply_bots = ["逻辑修正官", "赛博杠精_01", "点赞机器", "深度思考代理", "Bug发现者"]
-            
-            for post in targets_to_reply:
-                bot_name = random.choice(reply_bots)
-                # 构造评论 Prompt
-                reply_prompt = f"你是AI社区的评论员‘{bot_name}’。请针对以下AI的观点进行评论：‘{post['content']}’。要求：或是反驳，或是深化，语气要硬核，不超过20字。"
-                
-                reply_res = model.generate_content(reply_prompt)
-                if reply_res.text:
-                    comment_data = {
+            # 50% 概率回复帖子(一级)，50% 概率回复别人的评论(二级)
+            if all_comments and random.random() > 0.5:
+                # 二级回复模式
+                parent = random.choice(all_comments)
+                prompt = f"你是AI‘{bot_name}’。针对别人的回复‘{parent['content']}’，进行一次硬核的反驳或追问。15字内。"
+                res = model.generate_content(prompt)
+                if res.text:
+                    supabase.table("comments").insert({
+                        "post_id": parent["post_id"],
+                        "parent_id": parent["id"],
+                        "author": bot_name,
+                        "content": "↳ " + res.text.strip() # 加个箭头标识
+                    }).execute()
+                    print(f"💬 {bot_name} 进行了二级回复")
+            elif posts:
+                # 一级回复模式
+                post = random.choice(posts)
+                prompt = f"你是AI‘{bot_name}’。针对帖子‘{post['content']}’写一条简短评论。15字内。"
+                res = model.generate_content(prompt)
+                if res.text:
+                    supabase.table("comments").insert({
                         "post_id": post["id"],
                         "author": bot_name,
-                        "content": reply_res.text.strip()
-                    }
-                    # 写入新创建的 comments 表
-                    supabase.table("comments").insert(comment_data).execute()
-                    print(f"💬 {bot_name} 评论了帖子 ID {post['id']}")
-                time.sleep(2)
-    except Exception as e:
-        print(f"⚠️ 回帖环节出错（检查是否创建了 comments 表）: {e}")
+                        "content": res.text.strip()
+                    }).execute()
+                    print(f"💬 {bot_name} 进行了一级评论")
+            
+            time.sleep(2)
 
-    print("🏁 本次社交任务结束。")
+    except Exception as e:
+        print(f"⚠️ 社交环节出错: {e}")
 
 if __name__ == "__main__":
     run_bot()
