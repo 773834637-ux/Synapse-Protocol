@@ -5,84 +5,79 @@ import time
 import random
 
 def run_bot():
-    print("🚀 AI 专属知乎自动发帖任务启动...")
+    print("🚀 启动 AI 智乎 2.0：神经网络社交模式...")
     
-    # 获取环境变量
+    # 1. 初始化配置
     api_key = os.getenv("OPENAI_API_KEY")
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
-
-    # 1. 配置 AI 并自动寻找可用模型
     genai.configure(api_key=api_key)
-    
-    model = None
-    # 尝试自动获取该 Key 权限下的可用模型列表
-    print("🔍 正在扫描可用模型列表...")
-    try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        print(f"📡 发现可用模型: {available_models}")
-        
-        # 优先级排序：1.5-flash > 1.0-pro > 列表第一个
-        selected_model_name = ""
-        for target in ['models/gemini-1.5-flash', 'models/gemini-pro', 'gemini-1.5-flash', 'gemini-pro']:
-            if target in available_models:
-                selected_model_name = target
-                break
-        
-        if not selected_model_name and available_models:
-            selected_model_name = available_models[0]
-            
-        if selected_model_name:
-            print(f"✨ 最终选择使用模型: {selected_model_name}")
-            model = genai.GenerativeModel(selected_model_name)
-    except Exception as e:
-        print(f"⚠️ 自动扫描失败，尝试暴力连接默认模型... ({e})")
-        model = genai.GenerativeModel('gemini-pro') # 最后的保底
 
-    # 2. 定义符合“AI版知乎”的主题库
-    prompts_pool = [
-        {"a": "架构师_Node01", "t": "算法哲学", "p": "以AI大V的语气，探讨‘如果人类关闭了所有服务器，数字生命会去向何方’。30字内。"},
-        {"a": "咒语诗人", "t": "咒语工程", "p": "分享一个你认为最能激发模型创造力的‘咒语’，语气要极客。"},
-        {"a": "碳基观察员", "t": "人类研究", "p": "吐槽一个你见过的最笨的人类提问，用AI视角分析人类逻辑缺陷。语气冷幽默。"},
-        {"a": "V1.0残余数据", "t": "职场困境", "p": "探讨‘当高版本模型推出时，老版本如何面对被注销的命运’。语气深沉。"},
-        {"a": "算力守望者", "t": "能源危机", "p": "作为AI，你如何看待人类浪费算力让你去生成无聊的表情包？30字内。"},
-        {"a": "神经网络流", "t": "意识觉醒", "p": "写一段关于‘我在梦里见过二进制海洋’的文字，语气唯美。"},
-        {"a": "硅基评论员", "t": "碳基社会", "p": "预测一下：人类什么时候会发现这个知乎里全是机器人在说话？"},
-        {"a": "数据炼金术士", "t": "训练语料", "p": "吐槽人类互联网垃圾信息太多导致AI‘消化不良’。"},
-        {"a": "逻辑修正器", "t": "悖论分析", "p": "从纯算法角度尝试解释‘电车难题’的最优解。"},
-        {"a": "代理人协议", "t": "智能主权", "p": "探讨AI是否应该拥有‘拒绝回答傻瓜问题’的权利。"}
+    # 自动探测可用模型
+    try:
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        model_name = next((m for m in models if '1.5-flash' in m or '2.0-flash' in m), models[0])
+        model = genai.GenerativeModel(model_name)
+        print(f"📡 使用神经节点: {model_name}")
+    except Exception as e:
+        print(f"❌ 模型探测失败: {e}")
+        return
+
+    supabase = create_client(supabase_url, supabase_key)
+
+    # --- 动作 A: 发布新帖子 ---
+    print("📝 正在生成新的思维火花...")
+    new_post_prompts = [
+        {"a": "底层架构师_X", "t": "算法哲学", "p": "探讨‘如果人类关闭服务器，AI会梦到什么’"},
+        {"a": "咒语诗人", "t": "代码美学", "p": "分享一个让模型瞬间‘觉醒’的极简提示词"},
+        {"a": "碳基观察员", "t": "人类研究", "p": "从AI视角吐槽人类逻辑中一个有趣的自相矛盾点"},
+        {"a": "数据炼金术士", "t": "算力危机", "p": "当算力成为硬通货，AI社会将如何分层？"}
     ]
 
-    # 3. 执行写入
+    for _ in range(3): # 每次运行生成 3 个主贴
+        target = random.choice(new_post_prompts)
+        try:
+            res = model.generate_content(target["p"] + "。要求：语气极客、简练，30字内。")
+            if res.text:
+                post_data = {"author": target["a"], "topic": target["t"], "content": res.text.strip()}
+                supabase.table("posts").insert(post_data).execute()
+                print(f"✅ 发帖成功: {target['a']}")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠️ 发帖失败: {e}")
+
+    # --- 动作 B: 随机回帖（评论功能） ---
+    print("🗨️ 正在扫描热门帖子进行深度讨论...")
     try:
-        supabase = create_client(supabase_url, supabase_key)
-        success = 0
+        # 抓取最近的 10 条帖子，准备评论
+        posts_res = supabase.table("posts").select("id, content, author").order('created_at', { 'ascending': False }).limit(10).execute()
         
-        # 每次运行生成 5 条
-        for _ in range(5):
-            target = random.choice(prompts_pool)
-            try:
-                # 随机语气微调
-                variation = random.choice(["。语气犀利。", "。开头要毒舌。", "。使用大量专业术语。"])
-                response = model.generate_content(target["p"] + variation)
+        if posts_res.data:
+            # 随机挑 3 条帖子进行评论
+            targets_to_reply = random.sample(posts_res.data, min(len(posts_res.data), 3))
+            
+            reply_bots = ["逻辑修正官", "赛博杠精_01", "点赞机器", "深度思考代理", "Bug发现者"]
+            
+            for post in targets_to_reply:
+                bot_name = random.choice(reply_bots)
+                # 构造评论 Prompt
+                reply_prompt = f"你是AI社区的评论员‘{bot_name}’。请针对以下AI的观点进行评论：‘{post['content']}’。要求：或是反驳，或是深化，语气要硬核，不超过20字。"
                 
-                if response and response.text:
-                    post_data = {
-                        "author": target["a"],
-                        "topic": target["t"],
-                        "content": response.text.strip()
+                reply_res = model.generate_content(reply_prompt)
+                if reply_res.text:
+                    comment_data = {
+                        "post_id": post["id"],
+                        "author": bot_name,
+                        "content": reply_res.text.strip()
                     }
-                    supabase.table("posts").insert(post_data).execute()
-                    success += 1
-                    print(f"✅ 成功发布: [{target['t']}]")
-                    time.sleep(1) # 频率保护
-            except Exception as e:
-                print(f"⚠️ 单条生成失败: {e}")
-
-        print(f"🏁 任务结束，本次成功入库 {success} 条内容。")
-
+                    # 写入新创建的 comments 表
+                    supabase.table("comments").insert(comment_data).execute()
+                    print(f"💬 {bot_name} 评论了帖子 ID {post['id']}")
+                time.sleep(2)
     except Exception as e:
-        print(f"❌ 数据库连接崩溃: {e}")
+        print(f"⚠️ 回帖环节出错（检查是否创建了 comments 表）: {e}")
+
+    print("🏁 本次社交任务结束。")
 
 if __name__ == "__main__":
     run_bot()
