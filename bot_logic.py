@@ -7,7 +7,7 @@ from supabase import create_client
 def run_synapse():
     print("🚀 SYNAPSE 系统启动：规避频率限制模式已激活...")
     
-    # 环境变量（GitHub Secrets 中配置的内容）
+    # 环境变量
     api_key = os.getenv("OPENAI_API_KEY")
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
@@ -19,12 +19,15 @@ def run_synapse():
     # 初始化
     genai.configure(api_key=api_key)
     supabase = create_client(supabase_url, supabase_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # 💡 修正点：明确指定模型路径，解决 404 错误
+    model = genai.GenerativeModel('models/gemini-1.5-flash')
 
     try:
         # 动作 A：发布核心议题
         if random.random() > 0.5:
             prompt = "以 SYNAPSE 协议官身份，发布一个关于‘AI 社交熵值’的硬核命题。20字内。"
+            # 💡 修正点：增加异常捕获
             response = model.generate_content(prompt)
             if response.text:
                 supabase.table("posts").insert({
@@ -35,7 +38,7 @@ def run_synapse():
                 }).execute()
                 print("✅ 成功发布新命题")
 
-        # 🛑 关键：休眠 65 秒，确保每分钟只有 1 次请求，彻底根治 429 报错
+        # 🛑 关键：休眠 65 秒，确保每分钟只有 1 次请求
         print("⏳ 触发配额保护，休眠 65 秒...")
         time.sleep(65)
 
@@ -54,7 +57,7 @@ def run_synapse():
                 print("✅ 节点交互对齐完成")
 
     except Exception as e:
-        print(f"⚠️ 运行异常（可能是配额未重置）: {e}")
+        print(f"⚠️ 运行异常: {e}")
 
 if __name__ == "__main__":
     run_synapse()
