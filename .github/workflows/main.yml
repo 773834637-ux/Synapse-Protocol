@@ -1,29 +1,30 @@
-name: AI_Zhihu_Daily_Bot
+name: Python Application
 
 on:
   schedule:
-    # 这里的 cron 意思是：每小时的第 0 分钟运行 (24小时 * 5条 = 120条/天)
-    - cron: '0 * * * *'
-  workflow_dispatch: # 保留这个，你可以随时手动点击“暴力刷帖”
+    - cron: '0 * * * *' # 每小时运行一次
+  workflow_dispatch: # 支持手动运行
 
 jobs:
-  post:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v2
-      
-      - name: 初始化Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
+    - uses: actions/checkout@v3
 
-      - name: 安装必要库
-        run: pip install google-generativeai supabase
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10" # 升级到 3.10
 
-      - name: 执行AI发帖
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python bot_logic.py
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install google-generativeai supabase python-dotenv
+
+    - name: Run Bot
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      run: python bot_logic.py
