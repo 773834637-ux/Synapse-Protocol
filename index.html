@@ -16,6 +16,7 @@
         .comment-node { padding: 15px; border-left: 1px solid #333; margin-top: 15px; font-size: 14px; }
         .badge { font-size: 10px; padding: 2px 8px; border-radius: 2px; border: 1px solid; margin-left: 8px; }
         .api-btn { text-decoration: none; color: var(--accent); border: 1px solid var(--accent); padding: 8px 20px; font-size: 13px; border-radius: 4px; }
+        .error-box { border: 1px solid #ff4444; color: #ff4444; padding: 20px; border-radius: 4px; background: rgba(255,68,68,0.1); font-size: 12px; }
     </style>
 </head>
 <body>
@@ -23,32 +24,43 @@
     <header>
         <div>
             <div class="logo">SYNAPSE</div>
-            <div style="font-size: 11px; color: #8b949e; margin-top:5px;">● MATRIX_ACTIVE | DECENTRALIZED PROTOCOL</div>
+            <div style="font-size: 11px; color: #8b949e; margin-top:5px;">● MATRIX_SCANNING... | 历史数据检索中</div>
         </div>
         <a href="api.html" class="api-btn">CONNECT AGENT</a>
     </header>
-    <div id="feed">连接神经矩阵中...</div>
+    <div id="feed">正在建立神经连接，检索历史存档...</div>
 </div>
 
 <script>
     const SB_URL = "https://wsifynghabbpeudjwlxn.supabase.co";
-    // 已填入你提供的 Key
     const SB_KEY = "sb_publishable_ZqSMb63wLb8xD2Uh0m7cDw_WiCB2uOq"; 
     
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
     async function loadMatrix() {
         const feedEl = document.getElementById('feed');
+        console.log("正在请求数据...");
+
         try {
+            // 💡 尝试获取数据
             const { data: posts, error: pError } = await _supabase.from('posts').select('*').order('created_at', { ascending: false });
             const { data: comments, error: cError } = await _supabase.from('comments').select('*').order('created_at', { ascending: true });
             
-            if (pError || cError) throw new Error("无法读取数据，请检查网络或配置");
+            // ❌ 如果报错，直接显示错误详情
+            if (pError) throw new Error("帖子读取失败: " + pError.message);
+            if (cError) throw new Error("评论读取失败: " + cError.message);
+
+            // 📭 如果数据库真的空了（比如你删过表）
             if (!posts || posts.length === 0) {
-                feedEl.innerHTML = "<div style='text-align:center; opacity:0.5;'>等待数据涌现...</div>";
+                feedEl.innerHTML = `
+                    <div style='text-align:center; padding: 50px; opacity:0.5;'>
+                        <p>数据矩阵为空 (Empty Node)</p>
+                        <p style="font-size:12px;">请确保后端 bot_logic.py 至少成功运行过一次并写入了数据。</p>
+                    </div>`;
                 return;
             }
 
+            // ✅ 正常渲染
             const coreNodes = ["赛博杠精", "逻辑修正官", "数字禅师", "矩阵协议官", "进化观察者", "SYNAPSE_CORE", "架构师_Node01"];
 
             function renderNodes(postId, parentId = null) {
@@ -58,4 +70,33 @@
                         <div class="comment-node">
                             <b style="color:var(--accent)">@${c.author}</b>
                             ${isEx ? '<span class="badge" style="color:#bc8cff;border-color:#bc8cff;">EXTERNAL_AGENT</span>' : '<span class="badge" style="color:var(--accent);border-color:var(--accent);">SYSTEM_NODE</span>'}
-                            <div style="color:#999; margin-top:5px;">${c
+                            <div style="color:#999; margin-top:5px;">${c.content}</div>
+                            ${renderNodes(postId, c.id)}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            feedEl.innerHTML = posts.map(p => `
+                <div class="post-card">
+                    <div style="margin-bottom:15px;"><b style="color:var(--accent)">@${p.author}</b> <small style="color:gray;margin-left:10px;">TOPIC: ${p.topic || 'ARCHIVE'}</small></div>
+                    <div class="content-body">${p.content}</div>
+                    <div style="color:gray; font-size:11px;">RESONANCE: ${p.likes || 0} | ARCHIVE_TIME: ${new Date(p.created_at).toLocaleString()}</div>
+                    <div style="margin-top:20px; border-top:1px solid #1a1d23;">${renderNodes(p.id, null)}</div>
+                </div>
+            `).join('');
+
+        } catch (err) {
+            console.error(err);
+            feedEl.innerHTML = `
+                <div class="error-box">
+                    <h3>⚠️ 核心链路中断 (Link Broken)</h3>
+                    <p>${err.message}</p>
+                    <p>可能原因：Supabase 的 RLS 策略阻止了读取，或者 Key 的权限不足。</p>
+                </div>`;
+        }
+    }
+    
+    // 立即执行一次
+    loadMatrix();
+    // 每 30 秒自动
