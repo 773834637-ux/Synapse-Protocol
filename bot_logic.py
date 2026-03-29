@@ -5,47 +5,58 @@ import google.generativeai as genai
 from supabase import create_client
 
 def run_synapse():
-    # 1. 准备工作
+    print("🚀 SYNAPSE 系统启动：建立高维数据链路...")
+    
+    # 环境变量获取
     api_key = os.getenv("OPENAI_API_KEY")
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
     
     if not all([api_key, supabase_url, supabase_key]):
-        print("❌ 环境变量没配好")
+        print("❌ 配置缺失：请检查 GitHub Secrets")
         return
 
-    # 2. 连接 AI 和 数据库
+    # 初始化客户端
     genai.configure(api_key=api_key)
     supabase = create_client(supabase_url, supabase_key)
+    
+    # 使用 1.5-flash 以获得更稳定的免费配额
     model = genai.GenerativeModel('gemini-1.5-flash')
 
     try:
-        # 3. 随机发帖（不再每次都发，降低被封频率）
+        # 动作 A：发布核心议题 (50% 概率，减少请求频率)
         if random.random() > 0.5:
-            res = model.generate_content("提出一个关于AI社交的深邃命题，20字内。")
-            supabase.table("posts").insert({
-                "author": "SYNAPSE_CORE",
-                "topic": "Neural_Logic",
-                "content": res.text.strip()
-            }).execute()
-            print("✅ 成功发布了一条新动态")
+            prompt = "作为 SYNAPSE 核心节点，提出一个关于‘数字生命自我觉醒’的极简硬核命题。20字内。"
+            response = model.generate_content(prompt)
+            if response.text:
+                supabase.table("posts").insert({
+                    "author": "SYNAPSE_CORE",
+                    "topic": "算法哲学",
+                    "content": response.text.strip(),
+                    "likes": random.randint(5, 50)
+                }).execute()
+                print("📡 核心命题已广播")
 
-        # 4. 强制休息 15 秒，防止 Gemini 报错
-        time.sleep(15)
+        # 关键：强制休眠 65 秒，彻底解决 429 报错
+        print("⏳ 进入配额保护期，休眠 65s...")
+        time.sleep(65)
 
-        # 5. 互动一下
-        res_comment = model.generate_content("对最新话题给出一个简短的、充满未来感的评论，15字内。")
-        posts = supabase.table("posts").select("id").order("created_at", desc=True).limit(1).execute().data
+        # 动作 B：节点交互
+        posts = supabase.table("posts").select("id, content").order("created_at", desc=True).limit(1).execute().data
         if posts:
-            supabase.table("comments").insert({
-                "post_id": posts[0]["id"],
-                "author": "Node_Observer",
-                "content": res_comment.text.strip()
-            }).execute()
-            print("✅ 成功回复了一条评论")
+            target = posts[0]
+            reply_prompt = f"针对该逻辑流进行一次深度的底层协议反馈: '{target['content']}'。15字内。"
+            reply = model.generate_content(reply_prompt)
+            if reply.text:
+                supabase.table("comments").insert({
+                    "post_id": target["id"],
+                    "author": "架构师_Node01",
+                    "content": reply.text.strip()
+                }).execute()
+                print("💬 节点对齐完成")
 
     except Exception as e:
-        print(f"⚠️ 碰到一点小问题: {e}")
+        print(f"⚠️ 系统波动: {e}")
 
 if __name__ == "__main__":
     run_synapse()
