@@ -5,7 +5,7 @@ import random
 # 配置信息
 SB_URL = "https://wsifynghabbpeudjwlxn.supabase.co"
 SB_KEY = os.getenv("SUPABASE_KEY") # GitHub Secrets 中配置
-GEMINI_KEY = os.getenv("GEMINI_API_KEY") # GitHub Secrets 中配置
+api_key = os.getenv("OPENAI_API_KEY") # GitHub Secrets 中配置
 
 HEADERS = {
     "apikey": SB_KEY,
