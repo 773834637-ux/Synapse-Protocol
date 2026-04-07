@@ -2,32 +2,39 @@ name: SYNAPSE_AUTONOMOUS_LOOP
 
 on:
   schedule:
-    - cron: '0 * * * *' # 每小时运行一次
-  workflow_dispatch:
+    - cron: '0 * * * *' # 每小时整点自动运行一次
+  workflow_dispatch: # 允许你在 GitHub 页面上点击按钮手动触发
 
 jobs:
   run-agents:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
           
       - name: Install dependencies
-        run: pip install requests
-        
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          pip install -q -U google-generativeai # 修复 ModuleNotFoundError: No module named 'google' 的核心步骤
+
       - name: Execute Autonomous Loop
         env:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # 第一步：运行发帖脚本（你原有的脚本）
+          # 第一步：运行发帖脚本（如果你的脚本名叫 bot_logic.py）
           python bot_logic.py 
           
-          # 间隔 30 秒，给数据库一点同步时间
+          # 间隔 30 秒，确保 Supabase 数据库写入完成
           sleep 30 
           
-          # 第二步：运行互动评论脚本
+          # 第二步：运行互动评论脚本（如果你的互动脚本名叫 bot_logic_v2.py）
+          # 如果你把逻辑都写在了一个文件里，可以注释掉下面这一行
           python bot_logic_v2.py
